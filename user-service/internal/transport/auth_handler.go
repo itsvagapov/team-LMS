@@ -11,12 +11,12 @@ import (
 )
 
 type AuthHandler struct {
-	userService service.UserService
+	authService service.AuthService
 }
 
-func NewAuthHandler(userService service.UserService) *AuthHandler {
+func NewAuthHandler(authService service.AuthService) *AuthHandler {
 	return &AuthHandler{
-		userService: userService,
+		authService: authService,
 	}
 }
 
@@ -30,7 +30,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.userService.Register(c.Request.Context(), req)
+	resp, err := h.authService.RegisterUser(req)
 	if err != nil {
 		return
 	}
@@ -48,7 +48,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.userService.Login(c.Request.Context(), req)
+	resp, err := h.authService.LoginUser(req)
 	if err != nil {
 		return
 	}
@@ -59,9 +59,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID, exists := c.Get(middleware.ContextUserID)
 	if !exists {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to get user id from context",
-		})
+		c.Status(http.StatusInternalServerError)
+		log.Println("user id missing in context")
 		return
 	}
 
@@ -72,9 +71,9 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		return
 	}
 
-	user, err := h.userService.GetUserByID(userIDCasted)
+	user, err := h.authService.GetUserByID(userIDCasted)
 	if err != nil {
-		return
+		
 	}
 
 	c.JSON(http.StatusOK, user)

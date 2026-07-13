@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 type Config struct {
@@ -86,11 +88,10 @@ func LoadEnv() (*Config, error) {
 	if err != nil {
 		return nil, errors.New("jwt ttl invalid")
 	}
-	
 
 	jwtCfg := JWTConfig{
 		Secret: os.Getenv("JWT_SECRET"),
-		TTL: ttl,
+		TTL:    ttl,
 	}
 
 	if jwtCfg.Secret == "" {
@@ -107,8 +108,36 @@ func LoadEnv() (*Config, error) {
 
 	return &Config{
 		Server: serverCfg,
-		DB: dbCfg,
-		JWT: jwtCfg,
-		Kafka: kafkaCfg,
+		DB:     dbCfg,
+		JWT:    jwtCfg,
+		Kafka:  kafkaCfg,
 	}, nil
+}
+
+func New(cfg DBConfig) (*gorm.DB, error) {
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		cfg.Host,
+		cfg.User,
+		cfg.Password,
+		cfg.Name,
+		cfg.Port,
+		cfg.SSLMode,
+	)
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }

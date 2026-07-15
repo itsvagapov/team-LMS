@@ -5,16 +5,16 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/itsvagapov/team-LMS/user-service/internal/config"
 	"github.com/segmentio/kafka-go"
 )
 
-func CreateTopic(
-	broker string,
-	topic string,
-	partitions int,
-	replicationFactor int,
-) error {
-	conn, err := kafka.Dial("tcp", broker)
+const (
+	UsersEventsTopic string = "users.events"
+)
+
+func CreateTopic(cfg config.KafkaConfig, topic string) error {
+	conn, err := kafka.Dial("tcp", cfg.Brokers[0])
 	if err != nil {
 		return fmt.Errorf("dial broker: %w", err)
 	}
@@ -25,23 +25,20 @@ func CreateTopic(
 		return fmt.Errorf("get controller: %w", err)
 	}
 
-	controllerAddr := net.JoinHostPort(
-		controller.Host,
-		strconv.Itoa(controller.Port),
+	controllerConn, err := kafka.Dial(
+		"tcp",
+		net.JoinHostPort(controller.Host, strconv.Itoa(controller.Port)),
 	)
-
-	controllerConn, err := kafka.Dial("tcp", controllerAddr)
 	if err != nil {
 		return fmt.Errorf("dial controller: %w", err)
 	}
 	defer controllerConn.Close()
 
-	err = controllerConn.CreateTopics(kafka.TopicConfig{
+	if err := controllerConn.CreateTopics(kafka.TopicConfig{
 		Topic:             topic,
-		NumPartitions:     1,
-		ReplicationFactor: 1,
-	})
-	if err != nil {
+		NumPartitions:     cfg.PartitionsNum,
+		ReplicationFactor: cfg.ReplicationFactor,
+	}); err != nil {
 		return fmt.Errorf("create topic: %w", err)
 	}
 

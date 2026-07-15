@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -37,10 +38,12 @@ type JWTConfig struct {
 }
 
 type KafkaConfig struct {
-	Brokers []string
+	Brokers           []string
+	PartitionsNum     int
+	ReplicationFactor int
 }
 
-func LoadEnv() (*Config, error) {
+func New() (*Config, error) {
 	err := godotenv.Load(".env")
 
 	if err != nil {
@@ -98,8 +101,20 @@ func LoadEnv() (*Config, error) {
 		return nil, errors.New("jwt secret is not specified")
 	}
 
+	partitionsNum, err := strconv.Atoi(os.Getenv("KAFKA_PARTITIONS_NUM"))
+	if err != nil {
+		return nil, errors.New("kafka partitions num is not specified")
+	}
+
+	replicationFactor, err := strconv.Atoi(os.Getenv("KAFKA_REPLICATION_FACTOR"))
+	if err != nil {
+		return nil, errors.New("kafka replication factor is not specified")
+	}
+
 	kafkaCfg := KafkaConfig{
-		Brokers: []string{os.Getenv("KAFKA_BROKERS")},
+		Brokers:           []string{os.Getenv("KAFKA_BROKERS")},
+		PartitionsNum:     partitionsNum,
+		ReplicationFactor: replicationFactor,
 	}
 
 	if len(kafkaCfg.Brokers) == 0 {
@@ -114,7 +129,7 @@ func LoadEnv() (*Config, error) {
 	}, nil
 }
 
-func New(cfg DBConfig) (*gorm.DB, error) {
+func NewDBConn(cfg DBConfig) (*gorm.DB, error) {
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
 		cfg.Host,

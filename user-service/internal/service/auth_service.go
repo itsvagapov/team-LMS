@@ -17,26 +17,26 @@ import (
 )
 
 type AuthService interface {
-	RegisterUser(req model.RegisterRequest) (*model.UserResponse, error)
+	RegisterUser(req *model.RegisterRequest) (*model.UserResponse, error)
 	LoginUser(req model.LoginRequest) (*model.AuthResponse, error)
-	GetUserByID(id int) (*model.UserResponse, error)
+	GetUserByID(id uint) (*model.UserResponse, error)
 }
 
 type authService struct {
-	auth repository.AuthRepository
-	users repository.UserRepository
+	auth     repository.AuthRepository
+	users    repository.UserRepository
 	producer kafkabro.Producer
 }
 
 func NewAuthService(auth repository.AuthRepository, users repository.UserRepository, producer kafkabro.Producer) AuthService {
 	return &authService{
-		auth: auth,
-		users: users,
+		auth:     auth,
+		users:    users,
 		producer: producer,
 	}
 }
 
-func (s *authService) RegisterUser(req model.RegisterRequest) (*model.UserResponse, error) {
+func (s *authService) RegisterUser(req *model.RegisterRequest) (*model.UserResponse, error) {
 	if err := validateRegisterRequest(req); err != nil {
 		return nil, err
 	}
@@ -45,7 +45,6 @@ func (s *authService) RegisterUser(req model.RegisterRequest) (*model.UserRespon
 	if err != nil {
 		return nil, err
 	}
-
 	if exists {
 		return nil, ErrEmailAlreadyExists
 	}
@@ -62,7 +61,7 @@ func (s *authService) RegisterUser(req model.RegisterRequest) (*model.UserRespon
 		Role:         model.RoleStudent,
 	}
 
-	if err := s.auth.CreateUser(user); err != nil {
+	if err := s.auth.CreateUser(&user); err != nil {
 		return nil, err
 	}
 
@@ -81,7 +80,7 @@ func (s *authService) LoginUser(req model.LoginRequest) (*model.AuthResponse, er
 	}
 
 	if user == nil {
-		return nil, ErrUserNotFound
+		return nil, ErrInvalidLoginOrPassword
 	}
 
 	err = bcrypt.CompareHashAndPassword(
@@ -114,22 +113,22 @@ func (s *authService) LoginUser(req model.LoginRequest) (*model.AuthResponse, er
 
 	eventBytes, err := json.Marshal(event)
 	if err != nil {
-		log.Println("failed to marshal kafka event:", err)
+		return nil, err
 	}
 
 	err = s.producer.Send(
 		context.Background(),
 		eventBytes,
 	)
-
 	if err != nil {
-		log.Println("failed to send event to kafka:", err)
+		log.Println("ОШИБКА КАФКИ: ",err)
+		return nil, err
 	}
 
 	return &model.AuthResponse{Token: token}, nil
 }
 
-func (s *authService) GetUserByID(id int) (*model.UserResponse, error) {
+func (s *authService) GetUserByID(id uint) (*model.UserResponse, error) {
 	user, err := s.auth.GetByID(id)
 	if err != nil {
 		return nil, err
@@ -140,14 +139,14 @@ func (s *authService) GetUserByID(id int) (*model.UserResponse, error) {
 	}
 
 	return &model.UserResponse{
-		ID: user.ID,
-		Name: user.Name,
+		ID:    user.ID,
+		Name:  user.Name,
 		Email: user.Email,
-		Role: user.Role,
+		Role:  user.Role,
 	}, nil
 }
 
-func validateRegisterRequest(req model.RegisterRequest) error {
+func validateRegisterRequest(req *model.RegisterRequest) error {
 	name := req.Name
 
 	if req.Name == "" {

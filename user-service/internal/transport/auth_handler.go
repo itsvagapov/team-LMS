@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -24,14 +25,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	var req model.RegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Println(err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	resp, err := h.authService.RegisterUser(req)
+	resp, err := h.authService.RegisterUser(&req)
 	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -50,30 +54,49 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	resp, err := h.authService.LoginUser(req)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidLoginOrPassword) {
+			log.Println("login failed")
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "invalid email or password",
+			})
+			return
+		}
+
+		log.Println(err)
+		c.Status(http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusCreated, resp)
+	c.JSON(http.StatusOK, resp)
 }
 
 func (h *AuthHandler) Me(c *gin.Context) {
-	userID, exists := c.Get(middleware.ContextUserID)
+	userIDAny, exists := c.Get(middleware.ContextUserID)
 	if !exists {
-		c.Status(http.StatusInternalServerError)
 		log.Println("user id missing in context")
-		return
-	}
-
-	userIDCasted, ok := userID.(int)
-	if !ok {
 		c.Status(http.StatusInternalServerError)
-		log.Println("failed cast userID from any to int")
 		return
 	}
 
-	user, err := h.authService.GetUserByID(userIDCasted)
+	userID, ok := userIDAny.(uint)
+	if !ok {
+		log.Println("failed to cast userID to uint")
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	user, err := h.authService.GetUserByID(userID)
 	if err != nil {
-		
+		if errors.Is(err, service.ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "user not found",
+			})
+			return
+		}
+
+		log.Println(err)
+		c.Status(http.StatusInternalServerError)
+		return
 	}
 
 	c.JSON(http.StatusOK, user)

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 	"slices"
 	"strconv"
@@ -15,6 +16,7 @@ func GatewayHeadersMiddleware() gin.HandlerFunc {
 
 		id64, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil {
+			log.Println(err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": ErrUserRoleNotFound,
 			})
@@ -23,6 +25,7 @@ func GatewayHeadersMiddleware() gin.HandlerFunc {
 
 		role := c.GetHeader("X-User-Role")
 		if !slices.Contains([]model.UserRole{model.RoleStudent, model.RoleAdmin, model.RoleTeacher}, model.UserRole(role)) {
+			log.Println("invalid role")
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"error": ErrUserRoleNotFound,
 			})

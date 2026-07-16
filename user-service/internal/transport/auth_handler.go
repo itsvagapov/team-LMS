@@ -21,6 +21,24 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 	}
 }
 
+func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
+	protected := r.Group("")
+	protected.Use(middleware.GatewayHeadersMiddleware())
+
+	unprotected := r.Group("")
+
+	authNoDefense := unprotected.Group("/auth")
+	{
+		authNoDefense.POST("/register", h.Register)
+		authNoDefense.POST("/login", h.Login)
+	}
+
+	authDefense := protected.Group("/auth")
+	{
+		authDefense.GET("/me", h.Me)
+	}
+}
+
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req model.RegisterRequest
 
@@ -46,6 +64,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	var req model.LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Println(err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
@@ -55,7 +74,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	resp, err := h.authService.LoginUser(req)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidLoginOrPassword) {
-			log.Println("login failed")
+			log.Println(err)
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "invalid email or password",
 			})
@@ -87,6 +106,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 	user, err := h.authService.GetUserByID(userID)
 	if err != nil {
+		log.Println(err)
 		if errors.Is(err, service.ErrUserNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "user not found",

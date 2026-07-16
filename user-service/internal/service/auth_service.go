@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/mail"
 	"strings"
 	"time"
@@ -121,7 +120,6 @@ func (s *authService) LoginUser(req model.LoginRequest) (*model.AuthResponse, er
 		eventBytes,
 	)
 	if err != nil {
-		log.Println("ОШИБКА КАФКИ: ",err)
 		return nil, err
 	}
 

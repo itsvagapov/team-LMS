@@ -17,4 +17,5 @@ var (
 	ErrPasswordRequired       = errors.New("password is required")
 	ErrEmailRequired          = errors.New("email is required")
 	ErrInvalidLoginOrPassword = errors.New("invalid login or password")
+	ErrRoleAlreadyAssigned    = errors.New("role already assigned")
 )

@@ -12,5 +12,5 @@ type LoginRequest struct {
 }
 
 type ChangeRoleRequest struct {
-	Role *UserRole `json:"role"`
+	Role UserRole `json:"role"`
 }

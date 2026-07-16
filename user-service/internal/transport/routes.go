@@ -2,23 +2,13 @@ package transport
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/itsvagapov/team-LMS/user-service/internal/middleware"
+	"github.com/itsvagapov/team-LMS/user-service/internal/service"
 )
 
-func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
-	protected := r.Group("")
-	protected.Use(middleware.GatewayHeadersMiddleware())
+func RegisterRouts(r *gin.Engine, auth service.AuthService, user service.UserService) {
+	authHandler := NewAuthHandler(auth)
+	userHandler := NewUserHandler(user, auth)
 
-	unprotected := r.Group("")
-
-	authNoDefense := unprotected.Group("/auth")
-	{
-		authNoDefense.POST("/register", h.Register)
-		authNoDefense.POST("/login", h.Login)
-	}
-
-	authDefense := protected.Group("/auth")
-	{
-		authDefense.GET("/me", h.Me)
-	}
+	authHandler.RegisterRoutes(r)
+	userHandler.RegisterRoutes(r)
 }

@@ -45,9 +45,8 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	authRepo := repository.NewAuthRepository(db)
 	authService := service.NewAuthService(authRepo, userRepo, *producer)
-	authHandler := transport.NewAuthHandler(authService)
-
-	authHandler.RegisterRoutes(r)
+	userService := service.NewUserService(authRepo, userRepo, *producer)
+	transport.RegisterRouts(r, authService, userService)
 
 	if err := r.Run(":8081"); err != nil {
 		log.Fatalf("failed to run the HTTP server")

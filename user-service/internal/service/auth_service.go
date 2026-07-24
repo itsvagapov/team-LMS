@@ -16,6 +16,7 @@ import (
 )
 
 type AuthService interface {
+	CreateSuperAdmin(name, email, password string) error
 	RegisterUser(req *model.RegisterRequest) (*model.UserResponse, error)
 	LoginUser(req model.LoginRequest) (*model.AuthResponse, error)
 	GetUserByID(id uint) (*model.UserResponse, error)
@@ -33,6 +34,38 @@ func NewAuthService(auth repository.AuthRepository, users repository.UserReposit
 		users:    users,
 		producer: producer,
 	}
+}
+
+func (s *authService) CreateSuperAdmin(name, email, password string) error {
+	if err := validateRegisterRequest(&model.RegisterRequest{Name: name, Email: email, Password: password}); err != nil {
+		return err
+	}
+
+	exists, err := s.auth.ExistsByEmail(email)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	user := model.User{
+		Name:         name,
+		Email:        email,
+		PasswordHash: string(passwordHash),
+		Role:         model.RoleAdmin,
+	}
+
+	if err := s.auth.CreateUser(&user); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *authService) RegisterUser(req *model.RegisterRequest) (*model.UserResponse, error) {
@@ -61,6 +94,34 @@ func (s *authService) RegisterUser(req *model.RegisterRequest) (*model.UserRespo
 	}
 
 	if err := s.auth.CreateUser(&user); err != nil {
+		return nil, err
+	}
+
+	payload, err := json.Marshal(kafkabro.UserRegisteredPayload{
+		Email: user.Email,
+		Role:  user.Role,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	event := kafkabro.UserActivityEventMessage{
+		UserID:    user.ID,
+		EventType: kafkabro.EventUserRegistered,
+		Payload:   string(payload),
+		CreatedAt: time.Now().UTC(),
+	}
+
+	eventBytes, err := json.Marshal(event)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.producer.Send(
+		context.Background(),
+		eventBytes,
+	)
+	if err != nil {
 		return nil, err
 	}
 
@@ -103,11 +164,10 @@ func (s *authService) LoginUser(req model.LoginRequest) (*model.AuthResponse, er
 	}
 
 	event := kafkabro.UserActivityEventMessage{
-		UserID:        user.ID,
-		EventType:     kafkabro.EventUserLoggedIn,
-		SourceService: kafkabro.ServiceUser,
-		Payload:       string(payload),
-		CreatedAt:     time.Now().UTC(),
+		UserID:    user.ID,
+		EventType: kafkabro.EventUserLoggedIn,
+		Payload:   string(payload),
+		CreatedAt: time.Now().UTC(),
 	}
 
 	eventBytes, err := json.Marshal(event)

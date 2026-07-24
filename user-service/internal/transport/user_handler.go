@@ -42,7 +42,7 @@ func (h *UserHandler) ChangeRole(c *gin.Context) {
 		c.Status(http.StatusInternalServerError)
 		return
 	}
-
+	log.Println(userRole)
 	if userRole != model.RoleAdmin {
 		log.Println("insufficient privileges")
 		c.JSON(http.StatusForbidden, gin.H{

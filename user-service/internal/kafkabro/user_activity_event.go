@@ -11,7 +11,7 @@ type UserActivityEventMessage struct {
 
 	EventType UserActivityEventType `json:"event_type"`
 
-	SourceService SourceService `json:"source_service"`
+	// SourceService SourceService `json:"source_service"`
 
 	Payload string `json:"payload"`
 
@@ -19,5 +19,10 @@ type UserActivityEventMessage struct {
 }
 
 type UserLoggedInPayload struct {
+	Role model.UserRole `json:"role"`
+}
+
+type UserRegisteredPayload struct {
+	Email string `json:"email"`
 	Role model.UserRole `json:"role"`
 }

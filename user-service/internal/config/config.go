@@ -44,10 +44,12 @@ type KafkaConfig struct {
 }
 
 func New() (*Config, error) {
-	err := godotenv.Load(".env")
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to load env file: %w", err)
+	is_docker := os.Getenv("IS_DOCKER")
+	if is_docker == "" {
+		err := godotenv.Load(".env.local")
+		if err != nil {
+			return nil, fmt.Errorf("failed to load env file: %w", err)
+		}
 	}
 
 	serverCfg := ServerConfig{

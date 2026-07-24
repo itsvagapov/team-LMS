@@ -18,7 +18,7 @@ func GatewayHeadersMiddleware() gin.HandlerFunc {
 		if err != nil {
 			log.Println(err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": ErrUserRoleNotFound,
+				"error": ErrUserIDNotFound,
 			})
 			return
 		}

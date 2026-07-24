@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/itsvagapov/team-LMS/user-service/internal/config"
@@ -20,8 +22,6 @@ func main() {
 		log.Fatalf("config failed to initialize: %v", err)
 	}
 
-	log.Println(cfg)
-
 	db, err := config.NewDBConn(cfg.DB)
 	if err != nil {
 		log.Fatalf("database connection failed: %v", err)
@@ -33,6 +33,16 @@ func main() {
 	}
 
 	err = kafkabro.CreateTopic(cfg.Kafka, kafkabro.UsersEventsTopic)
+
+	for i := 0; i < 30; i++ {
+		err = kafkabro.CreateTopic(cfg.Kafka, kafkabro.UsersEventsTopic)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
 	if err != nil {
 		log.Fatalf("failed to create topic: %v", err)
 	}
@@ -48,7 +58,12 @@ func main() {
 	userService := service.NewUserService(authRepo, userRepo, *producer)
 	transport.RegisterRouts(r, authService, userService)
 
-	if err := r.Run(":8081"); err != nil {
+	err = authService.CreateSuperAdmin("admin", "admin@mail.ru", "123456")
+	if err != nil {
+		log.Fatal("failed to create super-admin")
+	}
+
+	if err := r.Run(os.Getenv("SERVER_PORT")); err != nil {
 		log.Fatalf("failed to run the HTTP server")
 	}
 }

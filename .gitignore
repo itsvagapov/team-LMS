@@ -13,6 +13,7 @@ coverage.out
 # Environment
 .env
 .env.*
+!.env.example
 
 # IDE
 .vscode/
@@ -21,3 +22,6 @@ coverage.out
 # OS
 .DS_Store
 Thumbs.db
+
+# Git
+.github
